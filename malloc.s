@@ -1,4 +1,3 @@
-
     .code 32
     .IFNDEF _MALLOC_S
     .EQU    _MALLOC_S, 0
@@ -25,8 +24,8 @@
 .equ MAP_ANON,    32
 .equ MAP_PRIVATE, 2
 
-.equ mem_alloc_PROT,  PROT_READ | PROT_WRITE
-.equ mem_alloc_FLAGS, MAP_ANON  | MAP_PRIVATE
+.equ malloc_PROT,  PROT_READ | PROT_WRITE
+.equ malloc_FLAGS, MAP_ANON  | MAP_PRIVATE
 
 new_bin:
 //r0 is size of bin (must be page aligned)
@@ -34,8 +33,8 @@ new_bin:
     mov r7, #192                  // mmap2
     mov r1, r0                    // amount to allocate
     mov r0, #0                    // kernel chooses where to map pages
-    mov r2, #mem_alloc_PROT       // read and write permission
-    mov r3, #mem_alloc_FLAGS      // not backed by file, private pages
+    mov r2, #malloc_PROT       // read and write permission
+    mov r3, #malloc_FLAGS      // not backed by file, private pages
     mov r4, #-1                   // no file descriptor
     mov r5, #0                    // no offset
     swi #0
@@ -86,67 +85,67 @@ page_align:
 page_align.aligned:
     bx lr                         // result in r0
 
-mem_alloc:
+malloc:
 //r0 is amount of bytes to allocate
     push { lr }                   // save link register
     cmp r0, #0
-    ble mem_alloc.end             // return if r0 is less than or equal to zero
+    ble malloc.end             // return if r0 is less than or equal to zero
     
     add r0, r0, #12               // account for chunk variables
     ldr r8, =heap
     ldr r9, [r8]
     cmp r9, #0                    // check if pointer is null
-    bne mem_alloc.find_bin        // if not continue
+    bne malloc.find_bin        // if not continue
     
     push { r0 }                   // save amount of bytes to alloc
     bl page_align                 // make amount of bytes a multiple of 4096
     bl new_bin                    // create new bin
     cmp r0, #0                    // check for failure to create new bin
-    bne mem_alloc.success
+    bne malloc.success
     
-    pop { r0, lr }
-    mov r0, #-1
-    bx lr
+    pop { r0, lr }                // restore link register
+    mov r0, #-1                   // set r0 to -1 to indicat failure
+    bx lr                         // return
 
-mem_alloc.success:
+malloc.success:
     ldr r8, =heap                 // load addr of heap
     str r0, [r8]                  // store addr of first bin
     mov r9, r0                    // move pointer to bin into r9
     pop { r0 }                    // restore amount of bytes to alloc
-    b mem_alloc.find_bin.end
+    b malloc.find_bin.end
     
-mem_alloc.find_bin:
+malloc.find_bin:
 // r8 points to heap
 // r0 contains amount of bytes to alloc
     ldr r9, [r8]                  // load addr of first bin
 
-mem_alloc.find_bin.loop:
+malloc.find_bin.loop:
     ldr r1, [r9]                  // load size of bin (not including bin variables)
     ldr r2, [r9, #4]              // load amount of bin's allocated memory
     sub r2, r1, r2                // calculate amount of unused memory
     cmp r0, r2
-    ble mem_alloc.find_bin.end    // if r0 is less than or equal to r2 break
+    ble malloc.find_bin.end    // if r0 is less than or equal to r2 break
 
     ldr r1, [r9, #16]             // pointer to next bin
     cmp r1, #0                    // check if next is NULL
-    bne mem_alloc.find_bin.next
+    bne malloc.find_bin.next
 
     push { r0 }                   // save r0
     bl page_align                 // make r0 a multiple of 4096
     bl new_bin                    // create new bin
     cmp r0, #0                    // check for failure to create new bin
-    beq mem_alloc.fail
+    beq malloc.fail
     str r0, [r9, #16]             // set current bin.next to the new bin
     str r9, [r0, #12]             // set new bin.prev to current bin
     mov r9, r0                    // set r9 new bin
     pop { r0 }                    // restore r0
-    b mem_alloc.find_bin.end      // break
+    b malloc.find_bin.end      // break
 
-mem_alloc.find_bin.next:
+malloc.find_bin.next:
     mov r9, r1                    // set r9 to next bin
-    b mem_alloc.find_bin.loop     // continue
+    b malloc.find_bin.loop     // continue
 
-mem_alloc.find_bin.end:
+malloc.find_bin.end:
     ldr r1, [r9, #4]              // amount of allocated bytes
     mov r2, r1                    // move r1 into r2
     add r2, r2, r0                // add chunk size to allocated bytes
@@ -156,12 +155,17 @@ mem_alloc.find_bin.end:
     mov r2, r9
     bl new_chunk
 
-mem_alloc.end:
+malloc.end:
     pop { lr }                    // restore link register
     bx lr                         // return
+
+malloc.fail:
+    pop { r0, lr }
+    mov r0, #-1
+    bx lr
 
     .section .data
 heap: .4byte 0
 
     .ENDIF
-
+/* _MALLOC_S_ */

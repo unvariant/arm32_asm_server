@@ -2,16 +2,25 @@
     .IFNDEF _FREE_S_
     .EQU    _FREE_S_, 0
 
-mem_free:
-//r0 contains pointer to memory after chunk varaibles
+    .INCLUDE "/home/pi/project/include/string.s"
+
+    .align 16
+
+free:
+//r0 contains pointer to memory to free
     ldr r1, [r0, #-4]             // load chunk.freed
     cmp r1, #0
-    beq mem_free.free
+    beq free.free
+
+    push { lr }
+    ldr r0, =double_free
+    bl print_string
+    pop { lr }
 
     mov r0, #-1
     bx lr
 
-mem_free.free:
+free.free:
     mov r1, #1
     str r1, [r0, #-4]              // mark the chunk as freed
     ldr r1, [r0, #-12]             // load size of chunk in bytes
@@ -24,49 +33,49 @@ mem_free.free:
     
     ldr r1, [r0, #4]               // load amount of allocated bytes
     cmp r2, r1                     // if equal bin can be unmapped
-    bne mem_free.end
+    bne free.end
 
     ldr r1, [r0, #12]              // load previous bin
     ldr r2, [r0, #16]              // load next bin
 
     cmp r1, #0
-    beq mem_free.set_heap          // if prev is NULL then bin must be first in the chain
+    beq free.set_heap          // if prev is NULL then bin must be first in the chain
 
 /* r1 != NULL */
     
     cmp r2, #0                     // if next is NULL then must be last in the chain
-    beq mem_free.set_next
+    beq free.set_next
 
 /* r1 != NULL and r2 != NULL */
 
     str r1, [r2, #12]              // next bin.prev = prev bin
     str r2, [r1, #16]              // prev bin.next = next bin
-    b mem_free.munmap
+    b free.munmap
 
-mem_free.set_heap:
+free.set_heap:
 
     cmp r2, #0
-    beq mem_free.zero_heap         // if next is also NULL must be only bin in the chain
+    beq free.zero_heap         // if next is also NULL must be only bin in the chain
 
 /* r1 == NULL and r2 != NULL */
 
     ldr r3, =heap                  // set first bin in heap to next bin
     str r2, [r3]
-    b mem_free.munmap
+    b free.munmap
 
-mem_free.set_next:
+free.set_next:
 /* r1 != NULL and r2 == NULL */
 
     str r2, [r1, #16]
-    b mem_free.munmap
+    b free.munmap
 
-mem_free.zero_heap:
+free.zero_heap:
 /* r1 == NULL and r2 == NULL */
     
     ldr r3, =heap                  // set first bin in heap to NULL
     str r1, [r3]
 
-mem_free.munmap:
+free.munmap:
     ldr r1, [r0]                   // load size of bin (not includeing bin variables)
     add r1, r1, #20                // add to account for bin variables
     
@@ -74,13 +83,30 @@ mem_free.munmap:
     swi #0                         // r0 contains addr of bin, r1 contains size of bin and bin variables
 
     cmn r0, #1                     // check for munmap failure
-    bne mem_free.end 
+    bne free.end 
+
+    push { lr }
+    ldr r0, =munmap_fail
+    bl print_string
+    pop { lr }
      
     mov r0, #-1                    // set r0 to -1 to indicate failure
     bx lr
 
-mem_free.end:
-    mov r0, #1                     // set r0 to 1 to indicate success
+free.end:
+    mov r0, #0                     // set r0 to 0 to indicate success
     bx lr                          // return
+
+    .section .data
+    .ltorg
+
+double_free: .asciz "(free): double free\n"
+munmap_fail: .asciz "(free): munmap fail\n"
+
+    .IFNDEF heap
+
+heap: .4byte 0
+
+    .ENDIF
 
     .ENDIF

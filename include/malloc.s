@@ -27,14 +27,16 @@
 .equ malloc_PROT,  PROT_READ | PROT_WRITE
 .equ malloc_FLAGS, MAP_ANON  | MAP_PRIVATE
 
+
+    .align 16
 new_bin:
 //r0 is size of bin (must be page aligned)
     push { r0 }                   // save size of bin
     mov r7, #192                  // mmap2
     mov r1, r0                    // amount to allocate
     mov r0, #0                    // kernel chooses where to map pages
-    mov r2, #malloc_PROT       // read and write permission
-    mov r3, #malloc_FLAGS      // not backed by file, private pages
+    mov r2, #malloc_PROT          // read and write permission
+    mov r3, #malloc_FLAGS         // not backed by file, private pages
     mov r4, #-1                   // no file descriptor
     mov r5, #0                    // no offset
     swi #0
@@ -43,7 +45,7 @@ new_bin:
     cmn r0, #1                    // check for -1 (mmap fail)
     bne new_bin.bin               // if not -1 continue
                                   
-    mov r0, #0                    // set r0 to NULL
+    mov r0, #-1                   // set r0 to -1 to indicate failure
     bx lr                         // return
 
 new_bin.bin:    
@@ -59,6 +61,8 @@ new_bin.bin:
 new_bin.end:
     bx lr                         // return r0 contains pointer to new bin
 
+
+    .align 16
 new_chunk:
 //size of chunk in r0 (including chunk variables)
 //pointer in r1
@@ -71,6 +75,8 @@ new_chunk:
     mov r0, r1
     bx lr                         // return pointer to memory after chunk variables
 
+
+    .align 16
 page_align:
 //integer in r0
     lsr r2, r0, #12               // r2 = r0 >> 12    
@@ -85,22 +91,24 @@ page_align:
 page_align.aligned:
     bx lr                         // result in r0
 
+
+    .align 16
 malloc:
 //r0 is amount of bytes to allocate
     push { lr }                   // save link register
     cmp r0, #0
-    ble malloc.end             // return if r0 is less than or equal to zero
+    ble malloc.end                // return if r0 is less than or equal to zero
     
-    add r0, r0, #12               // account for chunk variables
+    add r0, r0, #12               // extra space for struct variables
     ldr r8, =heap
     ldr r9, [r8]
     cmp r9, #0                    // check if pointer is null
-    bne malloc.find_bin        // if not continue
+    bne malloc.find_bin           // if not continue
     
     push { r0 }                   // save amount of bytes to alloc
     bl page_align                 // make amount of bytes a multiple of 4096
     bl new_bin                    // create new bin
-    cmp r0, #0                    // check for failure to create new bin
+    cmn r0, #-1                   // check for failure to create new bin
     bne malloc.success
     
     pop { r0, lr }                // restore link register
@@ -165,7 +173,12 @@ malloc.fail:
     bx lr
 
     .section .data
+    .IFNDEF heap
+
+    .ltorg
 heap: .4byte 0
+
+    .ENDIF
 
     .ENDIF
 /* _MALLOC_S_ */

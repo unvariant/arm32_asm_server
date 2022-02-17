@@ -2,6 +2,7 @@
     .IFNDEF _STRING_S_
     .EQU    _STRING_S_, 0
 
+    .INCLUDE "./malloc.s"
 
 /* ptr to string in r0 */
 
@@ -41,6 +42,7 @@ strcpy:
 string_from:
     push { r0, lr }
     bl strlen
+    add r0, r0, #1           // add one for NULL terminator
 
     bl malloc
     cmn r0, #1
@@ -100,6 +102,34 @@ strcmp.ne:
     mov r0, #-1           // -1 for not equal
     bx lr                 // return
 
+
+/* ptr to string in r0 */
+/* char to find in r1 */
+/* maximum characters to process in r2 */
+/* returns index of first occurance of char in r1 */
+/* returns -1 on not found */
+
+    .align 16
+string_find_until:
+    cmp r2, #0
+    beq 2f
+
+    mov r3, r0
+    eor r0, r0, r0
+1:
+    ldrb r4, [r3, r0]
+    cmp r4, r1
+    beq 3f
+
+    add r0, r0, #1
+    sub r2, r2, #1
+    ands r4, r4, r2
+    bne 1b
+2:
+    mov r0, #-1
+3:
+    bx lr
+    
 
 /* ptr to string to print in r0 */
 

@@ -1,6 +1,7 @@
     .code 32
     .INCLUDE "./hashmap.s"
     .INCLUDE "../malloc.s"
+    .INCLUDE "../string.s"
 
     .section .data
 hashmap: .4byte 0
@@ -20,20 +21,33 @@ _start:
     ldr r1, =hashmap
     str r0, [r1]
 
-    ldr r1, =key
-    ldr r2, =value
+    ldr r0, =key
+    bl string_from
+    push { r0 }
+    ldr r0, =value
+    bl string_from
+    pop { r1 }
+    mov r2, r0
+    ldr r0, =hashmap
+    ldr r0, [r0]
     bl hashmap_insert
     cmn r0, #1
     beq err
 
+    ldr r0, =key
     ldr r0, =hashmap
     ldr r0, [r0]
-    ldr r1, =key
     bl hashmap_get
     cmn r0, #1
     beq err
 
     bl print_string
+
+    ldr r0, =hashmap
+    ldr r0, [r0]
+    bl hashmap_dealloc
+    cmn r0, #1
+    beq err
 
 exit:
     mov r7, #1

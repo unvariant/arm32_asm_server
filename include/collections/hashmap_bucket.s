@@ -58,23 +58,37 @@ bucket_insert:
 
     ldr r2, [r0]
     cmp r2, #0
-    beq bucket_add.new_entry
+    beq bucket_insert.new_entry
 
     /* search for entry with key (r1) in bucket (r0) */
     bl bucket_find
 
     cmn r0, #1
-    beq bucket_add.not_found
+    beq bucket_insert.not_found
 
 /* bucket_find returns ptr to entry if found */
     ldr r2, [sp, #8]             // load value
-    str r2, [r0, #8]             // store value
+    ldr r1, [r0, #8]             // load old value
+    cmp r1, r2
+    beq bucket_insert.overwrite
 
+    push { r0, r2 }
+    mov r0, r1
+    bl free                      // if old value and new value are different free the old value
+    cmn r0, #1
+    beq bucket_insert.free_err
+
+    pop { r0, r2 }
+
+bucket_insert.overwrite:
+    str r2, [r0, #8]             // replace old value with new value
+
+bucket_insert.free_err:
     add sp, sp, #12
     pop { lr }
     bx lr
 
-bucket_add.not_found:
+bucket_insert.not_found:
     ldr r0, [sp]                        // load bucket ptr
     ldr r2, [r0]                        // load length of bucket
     eor r3, r3, r3                      // zero loop counter
@@ -84,7 +98,7 @@ bucket_add.not_found:
     cmp r3, r2                          // loop until counter equals length of bucket
     blt 1b
 
-bucket_add.new_entry:
+bucket_insert.new_entry:
     
     push { r0 }                         // save ptr to bucket entry
 
@@ -92,7 +106,7 @@ bucket_add.new_entry:
     bl malloc
 
     cmn r0, #1                           // check for err
-    beq bucket_add.err                 // if error handle properly
+    beq bucket_insert.err                 // if error handle properly
 
     ldr r3, [sp]                         // load ptr to entry
     ldr r1, [sp, #8]                     // load key
@@ -112,7 +126,7 @@ bucket_add.new_entry:
     pop { lr }
     bx lr                                // return
 
-bucket_add.err:
+bucket_insert.err:
     mov r0, #-1
     add sp, sp, #16
     pop { lr }

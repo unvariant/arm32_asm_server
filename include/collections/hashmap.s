@@ -41,11 +41,14 @@ hashmap_new:
     push { r0, lr }           // save # of entries and link register
     sub sp, sp, #4
 
+    cmp r0, #0
+    beq hashmap_new.err
+
     mov r0, #8                // alloc 8 bytes of space
     bl malloc
 
-    cmn r0, #1                // check for malloc error
-    beq hashmap_new.error
+    cmn r0, #1                // check for malloc err
+    beq hashmap_new.err
 
     ldr r1, [sp, #4]          // load # of entries
     str r1, [r0]              // set # of entries in hashmap
@@ -54,8 +57,8 @@ hashmap_new:
     lsl r0, r1, #2            // r1 = r0 * 4
     bl malloc                 // alloc array for entries
 
-    cmn r0, #1                // check for malloc error
-    beq hashmap_new.error
+    cmn r0, #1                // check for malloc err
+    beq hashmap_new.err
 
     ldr r1, [sp]
     str r0, [r1, #4]
@@ -75,7 +78,7 @@ hashmap_new:
     pop { lr }                // restore link register
     bx lr                     // return 
 
-hashmap_new.error:
+hashmap_new.err:
     add sp, sp, #8
     mov r0, #-1
     pop { lr }
@@ -128,8 +131,8 @@ hashmap_insert:
     push { r0 }                  // save ptr to entry
     bl bucket_new                // create new bucket
     
-    cmn r0, #1                   // check for error
-    beq hashmap_insert.error
+    cmn r0, #1                   // check for err
+    beq hashmap_insert.err
 
     ldr r1, [sp]                 // load ptr to array
     str r0, [r1]                 // store bucket in array
@@ -142,14 +145,14 @@ hashmap_insert.insert:
     ldr r2, [sp, #12]
     bl bucket_insert             // insert into bucket
 
-    cmn r0, #1                   // check for error
-    beq hashmap_insert.error
+    cmn r0, #1                   // check for err
+    beq hashmap_insert.err
 
     add sp, sp, #4               // clean up stack
     pop { r0, r1, r2, lr }       // restore link register
     bx lr                        // return
 
-hashmap_insert.error:
+hashmap_insert.err:
     add sp, sp, #16
     mov r0, #-1
     pop { lr }
@@ -190,4 +193,94 @@ hashmap_get.err:
     bx lr
     
 
+
+/* ptr to hashmap in r0 */
+/* ptr to key in r1 */
+/* returns -1 on failure */
+/* returns positive integer on success */
+
+    .align 16
+hashmap_remove:
+    push { r0, r1, lr }
+
+    bl __hashmap_bucket_addr
+
+    ldr r0, [r0]
+    cmp r0, #0
+    beq hashmap_remove.err
+
+    ldr r1, [sp, #4]
+    bl bucket_remove
+
+    cmn r0, #1
+    beq hashmap_remove.err
+
+    pop { r0, r1, lr }
+    bx lr
+
+hashmap_remove.err:
+    add sp, sp, #8
+    mov r0, #-1
+    pop { lr }
+    bx lr
+
+
+/* ptr to hashmap in r0 */
+/* returns -1 on failure to dealloc */
+/* returns positive integer on success */
+
+    .align 16
+hashmap_dealloc:
+    push { r0, r1, lr }
+    sub sp, sp, #8
+
+    ldr r1, [r0]
+    str r1, [sp, #12]
+    ldr r0, [r0, #4]
+    eor r1, r1, r1
+    str r0, [sp]
+    str r1, [sp, #4]
+hashmap_dealloc.free_buckets:
+    ldr r0, [r0, r1, LSL #2]
+    cmp r0, #0
+    beq 1f
+
+    bl bucket_dealloc
+    cmn r0, #1
+    beq hashmap_dealloc.err
+
+1:
+    ldr r0, [sp]
+    ldr r1, [sp, #4]
+    ldr r2, [sp, #12]
+    add r1, r1, #1
+    str r1, [sp, #4]
+    cmp r1, r2
+    blt hashmap_dealloc.free_buckets
+
+hashmap_dealloc.free_struct:
+    ldr r0, [sp]
+
+    bl free
+    cmn r0, #1
+    beq hashmap_dealloc.err
+
+    ldr r0, [sp, #8]
+
+    bl free
+    cmn r0, #1
+    beq hashmap_dealloc.err
+
+    add sp, sp, #16
+    mov r0, #1
+    pop { lr }
+    bx lr
+
+hashmap_dealloc.err:
+    add sp, sp, #16
+    mov r0, #-1
+    pop { lr }
+    bx lr
+
+    
     .ENDIF

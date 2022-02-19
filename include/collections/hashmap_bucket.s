@@ -2,9 +2,9 @@
     .IFNDEF _HASHMAP_BUCKET_S_
     .EQU    _HASHMAP_BUCKET_S_, 0
 
-    .INCLUDE "../malloc.s"
-    .INCLUDE "../free.s"
-    .INCLUDE "../string.s"
+    .INCLUDE "./include/malloc.s"
+    .INCLUDE "./include/free.s"
+    .INCLUDE "./include/string.s"
 
 /*
 struct bucket {

@@ -1,7 +1,7 @@
     .code 32
-    .INCLUDE "./hashmap.s"
-    .INCLUDE "../malloc.s"
-    .INCLUDE "../string.s"
+    .INCLUDE "./include/collections/hashmap.s"
+    .INCLUDE "./include/malloc.s"
+    .INCLUDE "./include/string.s"
 
     .section .data
 hashmap: .4byte 0

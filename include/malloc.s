@@ -172,7 +172,6 @@ malloc.fail:
     mov r0, #-1
     bx lr
 
-    .section .data
     .IFNDEF heap
 
     .ltorg

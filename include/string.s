@@ -2,7 +2,7 @@
     .IFNDEF _STRING_S_
     .EQU    _STRING_S_, 0
 
-    .INCLUDE "./malloc.s"
+    .INCLUDE "./include/malloc.s"
 
 /* ptr to string in r0 */
 

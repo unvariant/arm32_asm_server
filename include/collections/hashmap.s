@@ -1,9 +1,9 @@
     .IFNDEF _HASHMAP_S_
     .EQU    _HASHMAP_S_, 0
 
-    .INCLUDE "../malloc.s"
-    .INCLUDE "../free.s"
-    .INCLUDE "./hashmap_bucket.s"
+    .INCLUDE "./include/malloc.s"
+    .INCLUDE "./include/free.s"
+    .INCLUDE "./include/collections/hashmap_bucket.s"
 
 /*
 struct hashmap {

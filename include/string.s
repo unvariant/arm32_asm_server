@@ -25,6 +25,11 @@ strlen.end:
     bx lr
 
 
+/* dest string in r0 */
+/* src  string in r1 */
+/* returns ptr to dest string on success in r0 */
+/* returns number of bytes copied on success in r1 */
+
     .align 16
 strcpy:
     mov r3, r0
@@ -34,6 +39,7 @@ strcpy:
     cmp r2, #0
     bne 1b
 
+    sub r1, r0, r3
     mov r0, r3
     bx lr
 
@@ -129,7 +135,53 @@ string_find_until:
     mov r0, #-1
 3:
     bx lr
-    
+
+
+/* ptr to signed/unsigned integer in r0 */
+/* ptr to buffer in r1 to write number to */
+/* writes give number into buffer and NULL terminates the buffer */
+/* returns ptr to buffer in r0 */
+/* returns number of bytes written on success (including NULL terminator) in r1 */
+/* returns -1 on failure */
+
+    .align 16
+int_to_string:
+    eor r2, r2, r2
+    sub sp, sp, #8
+    str r2, [sp]
+    str r1, [sp, #4]
+    mov r2, #0xCCCD
+    movt r2, #0xCCCC
+
+1:
+    mov r3, r0
+    umull r5, r4, r0, r2
+
+    lsr r4, r4, #3
+    mov r0, r4
+
+    mov r5, r4
+    lsl r4, r4, #2
+    add r4, r4, r5
+    lsl r4, r4, #1
+
+    sub r3, r3, r4
+    add r3, r3, #0x30
+    push { r3 }
+    tst r0, r0
+    bne 1b
+
+2:
+    pop { r2 }
+    strb r2, [r1], #1
+    tst r2, r2
+    bne 2b
+
+int_to_string.end:
+    pop { r0 }
+    sub r1, r1, r0
+    bx lr
+
 
 /* ptr to string to print in r0 */
 

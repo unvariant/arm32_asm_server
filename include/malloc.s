@@ -100,7 +100,8 @@ malloc:
     ble malloc.end                // return if r0 is less than or equal to zero
     
     add r0, r0, #12               // extra space for struct variables
-    ldr r8, =heap
+    ldr r8, =malloc.heap_addr
+    ldr r8, [r8]
     ldr r9, [r8]
     cmp r9, #0                    // check if pointer is null
     bne malloc.find_bin           // if not continue
@@ -110,13 +111,20 @@ malloc:
     bl new_bin                    // create new bin
     cmn r0, #-1                   // check for failure to create new bin
     bne malloc.success
-    
+
+    mov r7, #4
+    mov r0, #1
+    ldr r1, =malloc.new_bin_err
+    mov r2, #malloc.new_bin_err_len
+    swi #0
+
     pop { r0, lr }                // restore link register
-    mov r0, #-1                   // set r0 to -1 to indicat failure
+    mov r0, #-1                   // set r0 to -1 to indicate failure
     bx lr                         // return
 
 malloc.success:
-    ldr r8, =heap                 // load addr of heap
+    ldr r8, =malloc.heap_addr     // load addr of heap
+    ldr r8, [r8]
     str r0, [r8]                  // store addr of first bin
     mov r9, r0                    // move pointer to bin into r9
     pop { r0 }                    // restore amount of bytes to alloc
@@ -132,7 +140,7 @@ malloc.find_bin.loop:
     ldr r2, [r9, #4]              // load amount of bin's allocated memory
     sub r2, r1, r2                // calculate amount of unused memory
     cmp r0, r2
-    ble malloc.find_bin.end    // if r0 is less than or equal to r2 break
+    ble malloc.find_bin.end       // if r0 is less than or equal to r2 break
 
     ldr r1, [r9, #16]             // pointer to next bin
     cmp r1, #0                    // check if next is NULL
@@ -147,11 +155,11 @@ malloc.find_bin.loop:
     str r9, [r0, #12]             // set new bin.prev to current bin
     mov r9, r0                    // set r9 new bin
     pop { r0 }                    // restore r0
-    b malloc.find_bin.end      // break
+    b malloc.find_bin.end         // break
 
 malloc.find_bin.next:
     mov r9, r1                    // set r9 to next bin
-    b malloc.find_bin.loop     // continue
+    b malloc.find_bin.loop        // continue
 
 malloc.find_bin.end:
     ldr r1, [r9, #4]              // amount of allocated bytes
@@ -168,16 +176,29 @@ malloc.end:
     bx lr                         // return
 
 malloc.fail:
+    mov r7, #4
+    mov r0, #1
+    ldr r1, =malloc.fail_msg
+    mov r2, #malloc.fail_msg_len
+    swi #0
+
     pop { r0, lr }
     mov r0, #-1
     bx lr
 
-    .IFNDEF heap
+    .section .data
+malloc.new_bin_err: .asciz "(malloc): failed to create memory bin\n"
+    .EQU malloc.new_bin_err_len, . - malloc.new_bin_err
+malloc.fail_msg: .asciz "(malloc): error\n"
+    .EQU malloc.fail_msg_len, . - malloc.fail_msg
 
+    .IFNDEF heap
     .ltorg
 heap: .4byte 0
-
     .ENDIF
+
+malloc.heap_addr: .4byte heap
+
 
     .ENDIF
 /* _MALLOC_S_ */

@@ -1,12 +1,13 @@
     .code 32
+
+    .INCLUDE "interrupt.s"
     .INCLUDE "utils.s"
     .INCLUDE "data_definitions.s"
 
     .section .data
-    .align 2
 req_buffer_addr:   .4byte req_buffer
 res_buffer_addr:   .4byte res_buffer
-file_buffer_addr: .4byte file_buffer
+file_buffer_addr:  .4byte file_buffer
 
 no_connect_msg: .asciz "no connection found, sleeping for one second\n"
     .EQU no_connect_msg_len, . - no_connect_msg
@@ -15,7 +16,6 @@ connect_msg:    .asciz "found connection\n"
 server_err_msg: .asciz "an error occured, exiting\n"
     .EQU server_err_msg_len, . - server_err_msg
 
-    .align 2
 address:   .2byte AF_INET
            .2byte 0x401F
            .4byte 0
@@ -29,10 +29,11 @@ timespec:  .8byte 1
 
 default_path:   .asciz "static/index.html"
 
-bad_req:        .ascii "HTTP/1.1 400 Malformed Request\n"
-                .ascii "Content-Type: text/html;charset=UTF-8\n"
-                .ascii "Content-Length: 17\n\n"
-                .asciz "Malformed Request"
+server_exit: .asciz "recieved interrupt, exiting\n"
+    .EQU server_exit_len, . - server_exit
+
+continue: .byte 1
+
 
     .EQU PORT, 8000
     .EQU socket_fd_offset, 4
@@ -51,6 +52,12 @@ bad_req:        .ascii "HTTP/1.1 400 Malformed Request\n"
 
 _start:
     sub sp, sp, #8
+
+     ldr r0, =signal_handler
+     bl set_handler
+
+    cmn r0, #1
+    beq server.err
 
     mov r0, #PORT
     ldr r1, =address
@@ -157,17 +164,32 @@ close:
     cmp r0, #0
     blt server.err
 
-    b server.loop
+server.check_continue:
+    ldr r1, =continue
+    ldrexb r0, [r1]
+    strexb r2, r0, [r1]
+    cmp r2, #0
+    beq server.check_continue
+
+    cmp r0, #1
+    beq server.loop
 
 server.end:
     mov r7, #SYS_close
     ldr r0, [sp, #socket_fd_offset]
     swi #0
 
+    mov r7, #SYS_write
+    mov r0, #1
+    ldr r1, =server_exit
+    mov r2, #server_exit_len
+    swi #0
+
 exit:
     mov r7, #SYS_exit
     mov r0, #0
     swi #0
+
 
 sleep_one_second:
     mov r7, #SYS_write
@@ -187,7 +209,8 @@ sleep_one_second:
     cmp r0, #0
     blt server.err
 
-    b server.loop
+    b server.check_continue
+
 
 server.err:
     mov r7, #SYS_write
@@ -197,6 +220,17 @@ server.err:
     swi #0
 
     b exit
+
+
+signal_handler:
+    ldr r1, =continue
+    ldrexb r0, [r1]
+    mov r0, #1
+    strexb r2, r0, [r1]
+    cmp r2, #0
+    beq signal_handler
+
+    b server.end
 
 
 /* _SERVER_S_ */

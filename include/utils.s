@@ -5,6 +5,7 @@
     .INCLUDE "data_definitions.s"
     .INCLUDE "string.s"
 
+
 /* port number in r0 */
 /* ptr to address information in r1 */
 /* address information size in bytes in r2 */
@@ -131,8 +132,11 @@ create_response.err:
     pop { lr }
     bx lr
 
+    .section .data
 create_response.res_temp:    .ascii "HTTP/1.1 200 OK\n"
                              .asciz "Content-Type: text/html;charset=UTF-8\n"
 create_response.content_len: .asciz "Content-Length: "
 
+
     .ENDIF
+/* _UTILS_S_ */

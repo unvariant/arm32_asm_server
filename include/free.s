@@ -2,7 +2,8 @@
     .IFNDEF _FREE_S_
     .EQU    _FREE_S_, 0
 
-    .INCLUDE "/home/pi/project/include/string.s"
+    .INCLUDE "string.s"
+
 
     .align 16
 
@@ -55,11 +56,12 @@ free.free:
 free.set_heap:
 
     cmp r2, #0
-    beq free.zero_heap         // if next is also NULL must be only bin in the chain
+    beq free.zero_heap             // if next is also NULL must be only bin in the chain
 
 /* r1 == NULL and r2 != NULL */
 
-    ldr r3, =heap                  // set first bin in heap to next bin
+    ldr r3, =free.heap_addr        // set first bin in heap to next bin
+    ldr r3, [r3]
     str r2, [r3]
     b free.munmap
 
@@ -72,7 +74,8 @@ free.set_next:
 free.zero_heap:
 /* r1 == NULL and r2 == NULL */
     
-    ldr r3, =heap                  // set first bin in heap to NULL
+    ldr r3, =free.heap_addr        // set first bin in heap to NULL
+    ldr r3, [r3]
     str r1, [r3]
 
 free.munmap:
@@ -104,9 +107,9 @@ double_free: .asciz "(free): double free\n"
 munmap_fail: .asciz "(free): munmap fail\n"
 
     .IFNDEF heap
-
 heap: .4byte 0
-
     .ENDIF
+
+free.heap_addr: .4byte heap
 
     .ENDIF

@@ -68,20 +68,31 @@ socket_setup.err:
 /* ptr to length of response buffer in r2 */
 /* ptr to buffer in r3 to store file */
 /* ptr to length of file buffer in r4 */
+/* response code in r5 */
 
     .align 16
 create_response:
-    push { r0, r1, r2, r3, r4, lr }
+    push { r0, r1, r2, r3, r4, r5, lr }
     sub sp, sp, #4
 
     ldr r0, [sp, #8]
-    ldr r1, =create_response.res_temp
+    ldr r1, =create_response.status_start
     bl strcpy
 
     add r0, r0, r1
     sub r0, r0, #1
 
-    ldr r1, =create_response.content_len
+    str r0, [sp]
+    mov r1, r0
+    ldr r0, [sp, #24]
+    bl int_to_string
+
+    ldr r0, [sp]
+    add r0, r0, r1
+    mov r1, #0x0a
+    strb r1, [r0, #-1]
+
+    ldr r1, =create_response.static
     bl strcpy
 
     add r0, r0, r1
@@ -129,21 +140,25 @@ create_response:
 
 create_response.end:
     ldr r0, [sp, #8]
+    push { r0, r1 }
+    bl print_string
+    pop { r0, r1 }
     sub r1, r1, r0
-    add sp, sp, #24
+    add sp, sp, #28
     pop { lr }
     bx lr
 
 create_response.err:
     mov r0, #-1
-    add sp, sp, #24
+    add sp, sp, #28
     pop { lr }
     bx lr
 
-    .section .data
-create_response.res_temp:    .ascii "HTTP/1.1 200 OK\n"
-                             .asciz "Content-Type: text/html;charset=UTF-8\n"
-create_response.content_len: .asciz "Content-Length: "
+    .ltorg
+
+create_response.status_start: .asciz "HTTP/1.1 "
+create_response.static:       .ascii "Content-Type: text/html;charset=UTF-8\n"
+                              .asciz "Content-Length: "
 
 
     .ENDIF

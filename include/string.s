@@ -44,15 +44,114 @@ strcpy:
     bx lr
 
 
+/* ptr to string in r0 */
+/* start index in r1 */
+/* end index in r2 */
+/* returns ptr to substring on success */
+/* returns -1 on failure */
+
     .align 16
-string_from:
+substr:
+    push { r0, r1, r2, lr }
+    sub sp, sp, #4
+
+    cmp r2, r1
+    ble substr.err
+
+    sub r0, r2, r1
+    add r0, r0, #1
+    bl malloc
+    cmn r0, #1
+    beq substr.err
+
+    str r0, [sp]
+    ldr r1, [sp, #4]
+    ldr r2, [sp, #12]
+    add r2, r1, r2
+    ldr r3, [sp, #8]
+    add r1, r1, r3
+1:
+    ldrb r3, [r1], #1
+    strb r3, [r0], #1
+
+    cmp r1, r2
+    bne 1b
+
+    eor r1, r1, r1
+    strb r1, [r0]
+
+    ldr r0, [sp]
+    add sp, sp, #16
+    pop { lr }
+    bx lr
+
+substr.err:
+    mov r0, #-1
+    add sp, sp, #16
+    pop { lr }
+    bx lr
+
+
+/* ptr to string in r0 */
+/* ptr to string in r1 */
+/* returns r0 concatenated with r1 on success */
+/* returns -1 on failure */
+
+    .align 16
+concat:
+    push { r0, r1, lr }
+    sub sp, sp, #4
+
+    bl strlen
+    str r0, [sp]
+
+    ldr r0, [sp, #8]
+    bl strlen
+
+    ldr r1, [sp]
+    add r0, r0, r1
+    add r0, r0, #1
+    bl malloc
+
+    cmn r0, #1
+    beq concat.err
+
+    str r0, [sp]
+    ldr r1, [sp, #4]
+    bl strcpy
+
+    add r0, r0, r1
+    sub r0, r0, #1
+
+    ldr r1, [sp, #8]
+    bl strcpy
+
+    ldr r0, [sp]
+    add sp, sp, #12
+    pop { lr }
+    bx lr
+
+concat.err:
+    mov r0, #-1
+    add sp, sp, #12
+    pop { lr }
+    bx lr
+
+
+/* ptr to string in r0 */
+/* creates a new string that is a copy of the given string */
+/* returns ptr to new string in success */
+/* returns -1 on failure */
+
+    .align 16
+string_clone:
     push { r0, lr }
     bl strlen
     add r0, r0, #1           // add one for NULL terminator
 
     bl malloc
     cmn r0, #1
-    beq string_from.err
+    beq string_clone.err
 
     ldr r1, [sp]
     bl strcpy
@@ -61,7 +160,7 @@ string_from:
     pop { lr }
     bx lr
 
-string_from.err:
+string_clone.err:
     add sp, sp, #4
     mov r0, #-1
     pop { lr }
@@ -180,7 +279,7 @@ ends_with.err:
 /* ptr to string in r0 */
 /* char to find in r1 */
 /* maximum characters to process in r2 */
-/* returns index of first occurance of char in r1 */
+/* returns index of first occurance of char in r0 */
 /* returns -1 on not found */
 
     .align 16
@@ -202,6 +301,32 @@ string_find_until:
 2:
     mov r0, #-1
 3:
+    bx lr
+
+
+/* ptr to string in r0 */
+/* char to find in r1 */
+/* returns index of first occurance of char in r0 */
+/* returns -1 on not found */
+
+    .align 16
+string_find:
+    mov r2, r0
+    eor r0, r0, r0
+
+1:
+    ldrb r3, [r2, r0]
+    cmp r3, r1
+    beq string_find.eq
+
+    add r0, r0, #1
+    cmp r3, #0
+    bne 1b
+
+    mov r0, #-1
+    bx lr
+
+string_find.eq:
     bx lr
 
 

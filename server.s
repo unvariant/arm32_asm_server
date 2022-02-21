@@ -3,6 +3,9 @@
     .INCLUDE "interrupt.s"
     .INCLUDE "utils.s"
     .INCLUDE "data_definitions.s"
+    .INCLUDE "string.s"
+    .INCLUDE "malloc.s"
+    .INCLUDE "free.s"
 
     .section .data
 req_buffer_addr:   .4byte req_buffer
@@ -15,6 +18,9 @@ connect_msg:    .asciz "found connection\n"
     .EQU connect_msg_len, . - connect_msg
 server_err_msg: .asciz "an error occured, exiting\n"
     .EQU server_err_msg_len, . - server_err_msg
+server_exit: .asciz "recieved interrupt, exiting\n"
+    .EQU server_exit_len, . - server_exit
+
 newline: .byte 10
 
 address:   .2byte AF_INET
@@ -28,11 +34,12 @@ client_fd: .4byte 0
 timespec:  .8byte 1
            .8byte 0
 
-default_path:   .asciz "static/index.html"
+default_req_path: .asciz "static/index.html"
+invalid_req_path: .asciz "invalid/invalid.html"
 
-server_exit: .asciz "recieved interrupt, exiting\n"
-    .EQU server_exit_len, . - server_exit
-
+GET_request:  .asciz "GET "
+POST_request: .asciz "POST "
+GET_search_dir: .asciz "./static"
 continue: .byte 1
 
 
@@ -107,6 +114,7 @@ accept:
     str r0, [r1]
     str r0, [sp, #client_fd_offset]
 
+
 read:
     mov r7, #SYS_read
     ldr r0, [sp, #client_fd_offset]
@@ -121,7 +129,7 @@ read:
     mov r2, #0
     ldr r1, =req_buffer_addr
     ldr r1, [r1]
-    strb r2, [r1, r0]          // make buffer NULL terminated
+    strb r2, [r1, r0]                          // make buffer NULL terminated
 
     mov r0, r1
     bl print_string
@@ -129,10 +137,48 @@ read:
     write newline, 1
 
 connection_found:
-    cmp r0, #0
-    blt server.err
+    ldr r0, =req_buffer_addr
+    ldr r0, [r0]
+    ldr r1, =GET_request
+    bl starts_with
 
-    ldr r0, =default_path
+    cmp r0, #1
+    beq process_GET
+
+    ldr r0, =req_buffer_addr
+    ldr r0, [r0]
+    ldr r1, =POST_request
+    bl starts_with
+
+    cmp r0, #1
+    beq process_POST
+
+    b process_INVALID
+
+process_GET:
+    ldr r0, =req_buffer_addr
+    ldr r0, [r0]
+    add r0, r0, #4
+    mov r1, #0x20
+    bl string_find
+
+    cmn r0, #1
+    beq server.end
+
+    add r2, r0, #4
+    ldr r0, =req_buffer_addr
+    ldr r0, [r0]
+    mov r1, #4
+    bl substr
+    cmn r0, #1
+    beq server.end
+
+    mov r1, r0
+    ldr r0, =GET_search_dir
+    bl concat
+    cmn r0, #1
+    beq server.end
+
     ldr r1, =res_buffer_addr
     ldr r1, [r1]
     mov r2, #(res_buffer_len & 0xffff)
@@ -140,6 +186,28 @@ connection_found:
     ldr r3, =file_buffer_addr
     ldr r3, [r3]
     mov r4, #file_buffer_len
+    mov r5, #200
+    bl create_response
+
+    cmn r0, #1
+    beq process_INVALID
+
+    b send
+
+process_POST:
+    b process_INVALID               /* TODO: handle POST requests */
+    b send
+
+process_INVALID:
+    ldr r0, =invalid_req_path
+    ldr r1, =res_buffer_addr
+    ldr r1, [r1]
+    mov r2, #(res_buffer_len & 0xffff)
+    movt r2, #(res_buffer_len >> 16 & 0xffff)
+    ldr r3, =file_buffer_addr
+    ldr r3, [r3]
+    mov r4, #file_buffer_len
+    mov r5, #404
     bl create_response
 
     cmn r0, #1
@@ -155,6 +223,7 @@ send:
 
     cmp r0, #0
     blt server.err
+
 
 close:
     mov r7, #SYS_close
@@ -179,8 +248,6 @@ server.end:
     ldr r0, [sp, #socket_fd_offset]
     swi #0
 
-    write server_exit, server_exit_len
-
 exit:
     mov r7, #SYS_exit
     mov r0, #0
@@ -188,7 +255,6 @@ exit:
 
 
 sleep_one_second:
-    /*
     mov r7, #SYS_write
     mov r0, #1
     ldr r1, =no_connect_msg
@@ -197,7 +263,6 @@ sleep_one_second:
 
     cmp r0, #0
     blt server.err
-    */
 
     mov r7, #SYS_nanosleep
     ldr r0, =timespec
@@ -217,7 +282,7 @@ server.err:
     mov r2, #server_err_msg_len
     swi #0
 
-    b exit
+    b server.end
 
 
 signal_handler:
@@ -228,6 +293,7 @@ signal_handler:
     cmp r2, #0
     beq signal_handler
 
+    write server_exit, server_exit_len
     b server.end
 
 

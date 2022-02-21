@@ -114,6 +114,15 @@ _start:
     add r0, r0, #0x30
     strb r0, [r1]
     write number, 2
+
+    ldr r0, =ends_with_test
+    mov r1, #0
+    mov r2, #5
+    bl substr
+    cmn r0, #1
+    beq not_found
+
+    bl print_string
     
 exit:
     mov r7, #1

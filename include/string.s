@@ -70,8 +70,8 @@ string_from.err:
 
 /* ptr to string in r0 */
 /* ptr to string in r1 */
-/* returns -1 on failure */
 /* returns 1 on success */
+/* returns -1 on failure */
 
     .align 16
 strcmp:
@@ -107,6 +107,74 @@ strcmp.eq:
 strcmp.ne:
     mov r0, #-1           // -1 for not equal
     bx lr                 // return
+
+
+/* ptr to string in r0 */
+/* ptr to string in r1 */
+/* checks if r0 starts with r1 */
+/* returns 1 on success */
+/* returns -1 on failure */
+
+    .align 16
+starts_with:
+    ldrb r2, [r0], #1
+    ldrb r3, [r1], #1
+
+    cmp r3, #0
+    beq starts_with.eq
+
+    cmp r2, #0
+    beq starts_with.ne
+
+    cmp r2, r3
+    beq starts_with
+
+starts_with.ne:
+    mov r0, #-1
+    bx lr
+
+starts_with.eq:
+    mov r0, #1
+    bx lr
+
+
+/* ptr to string in r0 */
+/* ptr to string in r1 */
+/* checks if r0 ends with r1 */
+/* returns 1 on success */
+/* returns -1 on failure */
+
+    .align 16
+ends_with:
+    push { r0, r1, lr }
+    sub sp, sp, #4
+
+    bl strlen
+    str r0, [sp]
+
+    ldr r0, [sp, #8]
+    bl strlen
+
+    ldr r2, [sp]
+    mov r3, r0
+    cmp r2, r3
+    blt ends_with.err
+
+    ldr r0, [sp, #4]
+    ldr r1, [sp, #8]
+    sub r2, r2, r3
+    add r0, r0, r2
+    bl strcmp
+
+    add sp, sp, #12
+    pop { lr }
+    bx lr
+
+ends_with.err:
+    mov r0, #-1
+    add sp, sp, #12
+    pop { lr }
+    bx lr
 
 
 /* ptr to string in r0 */

@@ -6,6 +6,14 @@
     .INCLUDE "string.s"
 
 
+    .macro write string, length
+    mov r7, #SYS_write
+    mov r0, #1
+    ldr r1, =\string
+    mov r2, #\length
+    swi #0
+    .endm
+
 /* port number in r0 */
 /* ptr to address information in r1 */
 /* address information size in bytes in r2 */

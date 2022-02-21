@@ -15,6 +15,7 @@ connect_msg:    .asciz "found connection\n"
     .EQU connect_msg_len, . - connect_msg
 server_err_msg: .asciz "an error occured, exiting\n"
     .EQU server_err_msg_len, . - server_err_msg
+newline: .byte 10
 
 address:   .2byte AF_INET
            .2byte 0x401F
@@ -53,8 +54,8 @@ continue: .byte 1
 _start:
     sub sp, sp, #8
 
-     ldr r0, =signal_handler
-     bl set_handler
+    ldr r0, =signal_handler
+    bl set_handler
 
     cmn r0, #1
     beq server.err
@@ -62,7 +63,7 @@ _start:
     mov r0, #PORT
     ldr r1, =address
     mov r2, #16
-    mov r3, #1
+    mov r3, #5
     bl socket_setup
 
     cmn r0, #1
@@ -122,13 +123,12 @@ read:
     ldr r1, [r1]
     strb r2, [r1, r0]          // make buffer NULL terminated
 
-connection_found:
-    mov r7, #SYS_write
-    mov r0, #1
-    ldr r1, =connect_msg
-    mov r2, #connect_msg_len
-    swi #0
+    mov r0, r1
+    bl print_string
 
+    write newline, 1
+
+connection_found:
     cmp r0, #0
     blt server.err
 
@@ -179,11 +179,7 @@ server.end:
     ldr r0, [sp, #socket_fd_offset]
     swi #0
 
-    mov r7, #SYS_write
-    mov r0, #1
-    ldr r1, =server_exit
-    mov r2, #server_exit_len
-    swi #0
+    write server_exit, server_exit_len
 
 exit:
     mov r7, #SYS_exit
@@ -192,6 +188,7 @@ exit:
 
 
 sleep_one_second:
+    /*
     mov r7, #SYS_write
     mov r0, #1
     ldr r1, =no_connect_msg
@@ -200,6 +197,7 @@ sleep_one_second:
 
     cmp r0, #0
     blt server.err
+    */
 
     mov r7, #SYS_nanosleep
     ldr r0, =timespec

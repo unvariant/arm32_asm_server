@@ -12,7 +12,8 @@ The hashmap contains a pointer to an array of linked lists that store key value 
 
 The server opens up a socket and listens for incoming requests. When it finds a request it accepts the connection and reads the requests data into a 4kb buffer. It parses the data and if it finds "GET " in the first line it will extract the requested path and attempt to return the corresponding file. If the file does not exist it will return 404. If it finds "POST " in the first line it will return 404. Anything else and it will respond with 404.
 
-TODO: revisit hashmap implementation and attempt to make a version that accepts generic types
-TODO: look into KMP and other string search algorithms
-TODO: implement threading for the server using clone
-TODO: test for possible buffer overflows
+TODO: revisit hashmap implementation and attempt to make a version that accepts generic types<br>
+TODO: look into KMP and other string search algorithms<br>
+TODO: implement threading for the server using clone<br>
+TODO: test for possible buffer overflows<br>
+TODO: comment code<br>

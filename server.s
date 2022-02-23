@@ -2,10 +2,11 @@
 
     .INCLUDE "interrupt.s"
     .INCLUDE "utils.s"
-    .INCLUDE "data_definitions.s"
+    .INCLUDE "definitions.s"
     .INCLUDE "string.s"
     .INCLUDE "malloc.s"
     .INCLUDE "free.s"
+    .INCLUDE "response.s"
 
     .section .data
 req_buffer_addr:   .4byte req_buffer
@@ -34,12 +35,6 @@ client_fd: .4byte 0
 timespec:  .8byte 1
            .8byte 0
 
-default_req_path: .asciz "static/index.html"
-invalid_req_path: .asciz "invalid/invalid.html"
-
-GET_request:  .asciz "GET "
-POST_request: .asciz "POST "
-GET_search_dir: .asciz "./static"
 continue: .byte 1
 
 
@@ -142,76 +137,25 @@ connection_found:
     ldr r1, =GET_request
     bl starts_with
 
-    cmp r0, #1
-    beq process_GET
-
-    ldr r0, =req_buffer_addr
-    ldr r0, [r0]
-    ldr r1, =POST_request
-    bl starts_with
-
-    cmp r0, #1
-    beq process_POST
-
-    b process_INVALID
-
-process_GET:
-    ldr r0, =req_buffer_addr
-    ldr r0, [r0]
-    add r0, r0, #4
-    mov r1, #0x20
-    bl string_find
-
-    cmn r0, #1
-    beq server.end
-
-    add r2, r0, #4
-    ldr r0, =req_buffer_addr
-    ldr r0, [r0]
-    mov r1, #4
-    bl substr
-    cmn r0, #1
-    beq server.end
-
-    mov r1, r0
-    ldr r0, =GET_search_dir
-    bl concat
-    cmn r0, #1
-    beq server.end
-
-    ldr r1, =res_buffer_addr
-    ldr r1, [r1]
-    mov r2, #(res_buffer_len & 0xffff)
-    movt r2, #(res_buffer_len >> 16 & 0xffff)
-    ldr r3, =file_buffer_addr
-    ldr r3, [r3]
-    mov r4, #file_buffer_len
-    mov r5, #200
-    bl create_response
-
-    cmn r0, #1
-    beq process_INVALID
-
-    b send
-
-process_POST:
-    b process_INVALID               /* TODO: handle POST requests */
-    b send
-
-process_INVALID:
-    ldr r0, =invalid_req_path
-    ldr r1, =res_buffer_addr
-    ldr r1, [r1]
-    mov r2, #(res_buffer_len & 0xffff)
-    movt r2, #(res_buffer_len >> 16 & 0xffff)
-    ldr r3, =file_buffer_addr
-    ldr r3, [r3]
-    mov r4, #file_buffer_len
-    mov r5, #404
-    bl create_response
-
+    mov r0, #0x1000
+    movt r0, #0x0010
+    push { r0 }
+    bl malloc
     cmn r0, #1
     beq server.err
+    push { r0 }
+
+    mov r0, #0x100000
+    bl malloc
+    cmn r0, #1
+    beq server.err
+
+    mov r3, r0
+    mov r4, #0x100000
+    ldr r0, =req_buffer_addr
+    ldr r0, [r0]
+    pop { r1, r2 }
+    bl process_request
 
 send:
     mov r7, #SYS_write

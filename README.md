@@ -15,5 +15,5 @@ The server opens up a socket and listens for incoming requests. When it finds a 
 TODO: revisit hashmap implementation and attempt to make a version that accepts generic types<br>
 TODO: look into KMP and other string search algorithms<br>
 TODO: implement threading for the server using clone<br>
-TODO: test for possible buffer overflows<br>
+TODO: test for possible buffer overflows (use mprotect?)<br>
 TODO: comment code<br>

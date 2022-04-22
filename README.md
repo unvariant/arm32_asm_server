@@ -18,3 +18,5 @@ TODO: implement threading for the server using clone<br>
 TODO: rewrite malloc/free to be thread safe<br>
 TODO: test for possible buffer overflows (use mprotect?)<br>
 TODO: comment code<br>
+TODO: refactor or rewrite code to use conditionals
+TODO: stop writing TODOS?
